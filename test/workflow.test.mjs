@@ -3,11 +3,7 @@ import assert from 'node:assert/strict';
 import {openStore} from '../src/core/store.js';
 import {createService} from '../src/core/service.js';
 import {requireAdmin,sameOrigin,rateLimit} from '../src/core/security.js';
-import {accessHtml,homeHtml} from '../src/core/views.js';
 import config from '../src/core/config.js';
-process.env.APP_URL='http://localhost:3000';
-process.env.OWNER_EMAIL='operator@example.com';
-process.env.REVIEWER_EMAIL='reviewer@example.com';
 const sample={"name": "Alex Doe", "email": "alex@example.com", "second_name": "Sam Lee", "second_email": "sam@example.com", "message": "You are both working on community projects.", "consent": "on"};
 function fixture(deliver){const store=openStore(':memory:');const sent=[];const app=createService({store,deliver:deliver|| (async message=>{sent.push(message);return {providerId:'test-provider-id',status:'accepted'}})});return {app,store,sent,close:()=>store.close()}}
 test('invalid fields do not create a record or email',async()=>{const f=fixture();try{await assert.rejects(()=>f.app.submit({...sample,email:'not-an-address'}));assert.equal(f.store.records(config.kind).length,0);assert.equal(f.sent.length,0)}finally{f.close()}});
@@ -21,3 +17,6 @@ test('uncertain sends are not automatically retried',async()=>{let attempts=0;co
 test('queued mail carries the record reference without exposing submitted content as metadata',async()=>{const f=fixture();try{const result=await f.app.submit(sample);assert.ok(f.sent.length);for(const mail of f.sent){assert.equal(mail.customVariables.record_id,result.id);assert.equal(mail.headers['X-Workflow-Reference'],result.id);assert.equal(mail.customVariables.workflow,config.kind);assert.ok(mail.category.startsWith(config.kind+'.'));assert.equal('email' in mail.customVariables,false)}}finally{f.close()}});
 
 test('a flush drains messages queued while another send is in flight',async()=>{let release;const waiting=new Promise(r=>release=r);let calls=0;const f=fixture(async()=>{if(++calls===1)await waiting;return {status:'accepted',providerId:'x'}});try{f.store.queue('first',{to:['a@example.com'],subject:'a',text:'a'});const flushing=f.app.flush();f.store.queue('second',{to:['b@example.com'],subject:'b',text:'b'});release();await flushing;assert.equal(calls,2);assert.equal(f.store.db.prepare("SELECT count(*) AS n FROM outbox WHERE status='accepted'").get().n,2)}finally{f.close()}});
+
+test('a second concurrent flush waits for the first to drain',async()=>{let release;const waiting=new Promise(resolve=>release=resolve);let calls=0;const f=fixture(async()=>{if(++calls===1)await waiting;return {status:'accepted',providerId:'fake'}});try{f.store.queue('first',{to:['a@example.com'],subject:'a',text:'a'});const first=f.app.flush();f.store.queue('second',{to:['b@example.com'],subject:'b',text:'b'});let resolved=false;const second=f.app.flush().then(()=>{resolved=true;assert.equal(calls,2);assert.equal(f.store.db.prepare("SELECT count(*) AS n FROM outbox WHERE status='accepted'").get().n,2)});await Promise.resolve();assert.equal(resolved,false);release();await Promise.all([first,second]);assert.equal(resolved,true)}finally{release();f.close()}});
+test('a duplicate introduction returns 409 without sending again',async()=>{const f=fixture();try{await f.app.submit(sample);await assert.rejects(()=>f.app.submit(sample),error=>error.status===409 && error.message==='This introduction has already been sent.');assert.equal(f.sent.length,2)}finally{f.close()}});

@@ -24,12 +24,12 @@ Install Node.js 24 or newer in the 24.x release line and npm. The built-in SQLit
 ```sh
 npm ci
 cp .env.example .env
-# Edit .env: set ADMIN_PASSWORD, APP_URL, owner/recipient settings,
+# Edit .env: set ADMIN_PASSWORD, APP_URL,
 # and email credentials using docs/email-setup.md.
 npm run dev
 ```
 
-The app is served at http://localhost:3000. For operator access, choose a unique password of at least 16 characters. You can generate one with:
+Open the browser at the exact `APP_URL` origin (default http://localhost:3000). For operator access, choose a unique password of at least 16 characters. You can generate one with:
 
 ```sh
 node -e "console.log(require('node:crypto').randomBytes(24).toString('base64url'))"
@@ -63,21 +63,19 @@ Example form values:
 
 | Variable | Meaning |
 | --- | --- |
-| `APP_URL` | Exact public origin; used for email links and cross-origin checks |
+| `APP_URL` | Exact public origin; used for request URLs and cross-origin checks |
 | `ADMIN_PASSWORD` | Operator password, at least 16 characters |
-| `OWNER_EMAIL` | Fixed recipient for owner notifications; replace the example address |
-| `REVIEWER_EMAIL` | Fixed reviewer for review requests; otherwise unused |
 | `DB_PATH` | SQLite file; defaults to `.data/app.sqlite` |
 | `HOST`, `PORT` | Production listener settings where supported by the framework |
 | `MAIL_MODE` | `sandbox`, `production`, or local-only `log` |
 
-Email credential variables are documented in [email setup](docs/email-setup.md). Frameworks must be restarted after environment changes. Customize the app's public copy, fields, seeded event details, or menu in `src/core/config.js`; Nuxt also uses `app-definition.json` for its client-visible definition. Keep those two definitions consistent when editing.
+Email credential variables are documented in [email setup](docs/email-setup.md). Frameworks must be restarted after environment changes. Customize the app's public copy, fields, seeded event details, or menu in `src/core/config.js`.
 
 ## Where the main idea lives
 
 - `src/server.js` (routes and middleware) and `views/index.ejs` (page template).
 - `src/core/service.js`: the application's workflow, field validation, and atomic state changes.
-- `src/core/store.js`: SQLite records, hashed tokens, rate counters, and a small email outbox.
+- `src/core/store.js`: SQLite records, rate counters, and a small email outbox.
 - `src/core/mail.js`: server-side email transport and environment selection.
 - `test/workflow.test.mjs`: workflow and permission edge cases.
 - `test/email.test.mjs`: transport configuration tests using local doubles.
@@ -104,7 +102,7 @@ This retries pending and known-failed messages. `accepted` means accepted by the
 
 ## Deployment and limits
 
-Run one Node process behind HTTPS with a persistent writable volume for `DB_PATH`. Run the build first, then start with your configured environment. Set `APP_URL` to the real HTTPS origin; do not trust arbitrary forwarded headers. The operator uses HTTP Basic authentication and must be protected by HTTPS outside localhost. This app is not designed for ephemeral or multi-instance serverless storage.
+Run one Node process behind HTTPS with a persistent writable volume for `DB_PATH`. Run the build first, then start with your configured environment. Set `APP_URL` to the real HTTPS origin; do not trust arbitrary forwarded headers. Behind a trusted proxy, `app.set('trust proxy', …)` controls Express proxy trust. The operator uses HTTP Basic authentication and must be protected by HTTPS outside localhost. This app is not designed for ephemeral or multi-instance serverless storage.
 
 Form submissions are limited to 12 per client per hour and 3 per recipient per hour. Behind a reverse proxy, clients may share the proxy address; configure infrastructure limits before larger deployment. There is no multi-user operator system, payment processing, distributed job queue, or production email webhook tracker.
 

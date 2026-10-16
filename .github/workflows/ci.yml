@@ -14,7 +14,3 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
-        env:
-          NEXT_TELEMETRY_DISABLED: 1
-          ASTRO_TELEMETRY_DISABLED: 1
-          NUXT_TELEMETRY_DISABLED: 1

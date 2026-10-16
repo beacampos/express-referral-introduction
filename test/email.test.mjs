@@ -41,6 +41,7 @@ test('batch endpoint isolates recipients and preserves partial outcomes',async()
     assert.equal(url,mode==='sandbox'?'https://sandbox.api.mailtrap.io/api/batch/123':`https://${stream==='bulk'?'bulk':'send'}.api.mailtrap.io/api/batch`);
     assert.deepEqual(result.map(r=>r.status),['accepted','failed']);assert.equal(payload.requests[0].to.length,1);assert.notDeepEqual(payload.requests[0].to,payload.requests[1].to);assert.equal(payload.base.from.email,base.MAIL_FROM);
   }
-  await assert.rejects(()=>sendBatch([message,message],{env:base,fetch:async()=>response({responses:[{success:true,message_ids:['a']}]})}),error=>error.uncertain===true);
+  await assert.rejects(()=>sendBatch([message,message],{env:base,fetch:async()=>response({success:true,responses:[{success:true,message_ids:['a']}]})}),error=>error.uncertain===true);
+  const rejected=await sendBatch([message,message],{env:base,fetch:async()=>response({success:false})});assert.deepEqual(rejected.map(r=>r.status),['failed','failed']);
   const outcomes=await sendBatch([message,message],{env:base,fetch:async()=>response({responses:[{}, {success:true,message_ids:['b']}]})});assert.deepEqual(outcomes.map(r=>r.status),['unknown','accepted']);
 });

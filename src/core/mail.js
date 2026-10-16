@@ -87,6 +87,7 @@ export async function sendBatch(messages, dependencies = {}) {
   const payloads = messages.map(message => buildPayload(message, cfg, env));
   if (cfg.mode === 'log') return payloads.map(payload => preview(payload, env));
   const result = await request(cfg, {base:{from:payloads[0].from}, requests:payloads.map(({from, ...item}) => item)}, dependencies);
+  if (result?.success === false && !Array.isArray(result.responses)) return messages.map(()=>({status:'failed',error:'Email provider did not accept the batch.'}));
   if (!Array.isArray(result?.responses) || result.responses.length !== messages.length) throw new MailError('Batch outcomes could not be matched. Check provider logs.', true);
   // HTTP 200 is not enough: preserve each recipient's individual outcome.
   return result.responses.map((item, index) => {

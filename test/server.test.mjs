@@ -1,0 +1,26 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {mkdtemp,rm} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+process.env.DB_PATH=':memory:';
+process.env.MAIL_MODE='log';
+process.env.ADMIN_PASSWORD='test-password-at-least-16';
+const {createServer}=await import('../src/server.js');
+const {service}=await import('../src/core/service.js');
+const authorization='Basic '+Buffer.from('admin:'+process.env.ADMIN_PASSWORD).toString('base64');
+test('Express serves authenticated pages, normalized routes, forms, unsupported bodies and module-relative assets',async t=>{
+ const cwd=process.cwd();const dir=await mkdtemp(join(tmpdir(),'introduction-test-'));process.env.MAIL_LOG_PATH=join(dir,'emails.jsonl');
+ let server;
+ t.after(async()=>{process.chdir(cwd);if(server)await new Promise((resolve,reject)=>server.close(error=>error?reject(error):resolve()));service().store.close();await rm(dir,{recursive:true,force:true});});
+ process.chdir(dir);
+ const app=await createServer();server=app.listen(0,'127.0.0.1');await new Promise((resolve,reject)=>{server.once('listening',resolve);server.once('error',reject)});
+ const origin=`http://127.0.0.1:${server.address().port}`;process.env.APP_URL=origin+'/';
+ const call=(path,options)=>fetch(origin+path,options);
+ assert.equal((await call('/')).status,401);
+ const root=await call('/',{headers:{authorization}});assert.equal(root.status,200);assert.match(await root.text(),/Send introduction/);
+ assert.equal((await call('/style.css')).status,200);
+ const health=await call('/health');assert.equal(health.status,200);assert.equal((await health.json()).ok,true);
+ const form=await call('/api/submit',{method:'POST',headers:{authorization,origin},body:new URLSearchParams({name:'Alex',email:'alex@example.com',second_name:'Sam',second_email:'sam@example.com',message:'Meet each other.',consent:'on'})});assert.equal(form.status,200);assert.match(form.headers.get('content-type'),/text\/html/);assert.match(await form.text(),/The introduction is saved/);
+ const plain=await call('/api/submit',{method:'POST',headers:{authorization,origin,'content-type':'text/plain'},body:'hello'});assert.equal(plain.status,415);
+});

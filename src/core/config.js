@@ -1,15 +1,7 @@
 export default {
-  "id": 20,
   "title": "Referral Introduction",
   "framework": "Express",
-  "transport": "api",
-  "details": [],
-  "projects": [],
-  "actions": [],
-  "capacity": 0,
   "adminOnly": true,
-  "hideForm": false,
-  "publicList": false,
   "formNote": "Your details are used only to handle this request.",
   "kind": "introduction",
   "eyebrow": "A USEFUL CONNECTION",
@@ -19,22 +11,22 @@ export default {
   "fields": [
     {
       "name": "name",
-      "label": "First person\u2019s name",
+      "label": "First person’s name",
       "type": "text"
     },
     {
       "name": "email",
-      "label": "First person\u2019s email",
+      "label": "First person’s email",
       "type": "email"
     },
     {
       "name": "second_name",
-      "label": "Second person\u2019s name",
+      "label": "Second person’s name",
       "type": "text"
     },
     {
       "name": "second_email",
-      "label": "Second person\u2019s email",
+      "label": "Second person’s email",
       "type": "email"
     },
     {
@@ -48,7 +40,5 @@ export default {
       "type": "checkbox"
     }
   ],
-  "success": "The introduction is saved.",
-  "accent": "#216451",
-  "batch": true
+  "success": "The introduction is saved."
 };
